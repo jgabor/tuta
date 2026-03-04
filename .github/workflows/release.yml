@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install UPX
+        run: sudo apt-get install -y upx
+
+      - name: Build
+        run: |
+          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-linux-amd64   .
+          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-linux-arm64   .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-darwin-amd64  .
+          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-darwin-arm64  .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-windows-amd64.exe .
+
+      - name: Compress with UPX
+        run: |
+          upx --best --lzma tuta-linux-amd64
+          upx --best --lzma tuta-linux-arm64
+          upx --best --lzma tuta-windows-amd64.exe
+          # macOS binaries skipped: UPX does not support arm64 and triggers
+          # Gatekeeper on modern macOS for amd64.
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            tuta-linux-amd64
+            tuta-linux-arm64
+            tuta-darwin-amd64
+            tuta-darwin-arm64
+            tuta-windows-amd64.exe
