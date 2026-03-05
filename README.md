@@ -26,13 +26,13 @@ Defaults to `success` if no argument is given or the argument is unrecognized.
 
 ## Sounds
 
-| Sound     | Character                          | Waveform  |
-|-----------|------------------------------------|-----------|
-| success   | ascending C major arpeggio         | sine      |
-| error     | descending dissonant interval      | square    |
-| warning   | unresolved major second            | triangle  |
-| info      | single neutral tone                | sine      |
-| complete  | ascending perfect fifth, sustained | triangle  |
+| Sound    | Character                      | Waveform |
+| -------- | ------------------------------ | -------- |
+| success  | ascending C major arpeggio     | sine     |
+| error    | low descending buzz (D3 → A2)  | square   |
+| warning  | two radar-style pings at C6    | sine     |
+| info     | single neutral tone            | sine     |
+| complete | ascending triad (B4 → D5 → G5) | triangle |
 
 ---
 
@@ -46,14 +46,14 @@ Every sound in tuta is built from the same small set of parameters: frequency, d
 
 The relationship between notes determines whether a sound feels positive, negative, or neutral. Intervals with simple frequency ratios are consonant (pleasant, resolved); complex ratios are dissonant (tense, alarming).
 
-| Interval       | Ratio | Character           | Use                  |
-|----------------|-------|---------------------|----------------------|
-| Perfect fifth  | 3:2   | open, stable        | calm completion      |
-| Major third    | 5:4   | bright, happy       | success              |
-| Major triad    | —     | resolved, uplifting | strong positive cue  |
-| Major second   | 9:8   | mild tension        | warning              |
-| Minor third    | 6:5   | melancholic         | soft alert           |
-| Tritone        | 45:32 | maximum dissonance  | critical error       |
+| Interval      | Ratio | Character           | Use                 |
+| ------------- | ----- | ------------------- | ------------------- |
+| Perfect fifth | 3:2   | open, stable        | calm completion     |
+| Major third   | 5:4   | bright, happy       | success             |
+| Major triad   | —     | resolved, uplifting | strong positive cue |
+| Major second  | 9:8   | mild tension        | warning             |
+| Minor third   | 6:5   | melancholic         | soft alert          |
+| Tritone       | 45:32 | maximum dissonance  | critical error      |
 
 The `success` sound plays **C5 → E5 → G5**, a C major arpeggio. The intervals are a major third and a perfect fifth — both highly consonant, which is why it reads immediately as positive.
 
@@ -63,15 +63,15 @@ The `success` sound plays **C5 → E5 → G5**, a C major arpeggio. The interval
 - **Descending** pitch signals failure, winding down, negativity
 - **Flat / single tone** is neutral and informational
 
-The `error` sound descends from G4 to E4. The `complete` sound ascends a perfect fifth (G4 → D5).
+The `error` sound descends from D3 to A2. The `complete` sound ascends B4 → D5 → G5 with a sustained final note.
 
 ### 3. Waveform → timbre
 
-| Waveform | Character                        | Best for              |
-|----------|----------------------------------|-----------------------|
-| Sine     | pure, soft, no harmonics         | gentle / non-urgent   |
-| Triangle | warm, mild harmonics             | calm / ambient        |
-| Square   | buzzy, harsh, cuts through noise | urgent / error        |
+| Waveform | Character                        | Best for            |
+| -------- | -------------------------------- | ------------------- |
+| Sine     | pure, soft, no harmonics         | gentle / non-urgent |
+| Triangle | warm, mild harmonics             | calm / ambient      |
+| Square   | buzzy, harsh, cuts through noise | urgent / error      |
 
 Square waves contain strong odd harmonics, which is why they feel sharp and attention-grabbing. Sine waves are the opposite — pure and unobtrusive.
 
@@ -83,17 +83,17 @@ Square waves contain strong odd harmonics, which is why they feel sharp and atte
 
 ### 5. Dynamics → emphasis
 
-Increasing the volume on the final note (as `success` does: 0.2 → 0.25) creates a crescendo that reinforces the sense of resolution. Flat volume across notes feels more mechanical.
+Increasing the volume on the final note (as `success` does: 0.2 → 0.35) creates a crescendo that reinforces the sense of resolution. Flat volume across notes feels more mechanical.
 
 ### 6. Decay rate → texture
 
 All tones use exponential decay: `exp(-3 * t / duration)`. Adjusting the constant changes texture:
 
-| Constant | Feel                     |
-|----------|--------------------------|
-| 1–2      | sustained, organ-like    |
-| 3        | bell / pluck (default)   |
-| 6+       | percussive, staccato     |
+| Constant | Feel                   |
+| -------- | ---------------------- |
+| 1–2      | sustained, organ-like  |
+| 3        | bell / pluck (default) |
+| 6+       | percussive, staccato   |
 
 ### Adding a new sound
 
@@ -105,6 +105,7 @@ All tones use exponential decay: `exp(-3 * t / duration)`. Adjusting the constan
 6. Nudge the final volume up slightly for emphasis
 
 Example — a soft "thinking" pulse:
+
 ```go
 "thinking": {
     {440.00, 0.08, "triangle", 0.12},  // A4
@@ -113,3 +114,7 @@ Example — a soft "thinking" pulse:
 ```
 
 A repeated flat tone reads as "in progress" rather than resolved.
+
+## License
+
+MIT, Jonathan Gabor
