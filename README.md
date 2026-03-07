@@ -17,6 +17,7 @@ sudo mv tuta /usr/local/bin/
 
 ```sh
 tuta [sound]
+tuta --help
 tuta --version
 ```
 
@@ -117,4 +118,8 @@ A repeated flat tone reads as "in progress" rather than resolved.
 
 ## License
 
-MIT, Jonathan Gabor
+MIT
+
+## Author
+
+Jonathan Gabor ([@jgabor](https://github.com/jgabor))
