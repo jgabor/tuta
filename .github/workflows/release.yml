@@ -6,10 +6,37 @@ on:
       - 'v*'
 
 jobs:
-  release:
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            artifact: tuta-linux-amd64
+            upx: true
+          - os: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+            artifact: tuta-linux-arm64
+            upx: true
+          - os: macos-13
+            goos: darwin
+            goarch: amd64
+            artifact: tuta-darwin-amd64
+            upx: false
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            artifact: tuta-darwin-arm64
+            upx: false
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            artifact: tuta-windows-amd64.exe
+            upx: true
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -17,30 +44,47 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Install UPX
+      - name: Install ALSA dev headers (Linux)
+        if: matrix.goos == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
+      - name: Install UPX (Linux)
+        if: matrix.upx && matrix.goos == 'linux'
         run: sudo apt-get install -y upx
 
+      - name: Install UPX (Windows)
+        if: matrix.upx && matrix.goos == 'windows'
+        run: choco install upx -y --no-progress
+
       - name: Build
-        run: |
-          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-linux-amd64   .
-          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-linux-arm64   .
-          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-darwin-amd64  .
-          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-darwin-arm64  .
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o tuta-windows-amd64.exe .
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o ${{ matrix.artifact }} .
 
       - name: Compress with UPX
-        run: |
-          upx --best --lzma tuta-linux-amd64
-          upx --best --lzma tuta-linux-arm64
-          upx --best --lzma tuta-windows-amd64.exe
-          # macOS binaries skipped: UPX does not support arm64 and triggers
-          # Gatekeeper on modern macOS for amd64.
+        if: matrix.upx
+        shell: bash
+        run: upx --best --lzma ${{ matrix.artifact }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: |
-            tuta-linux-amd64
-            tuta-linux-arm64
-            tuta-darwin-amd64
-            tuta-darwin-arm64
-            tuta-windows-amd64.exe
+          files: dist/*
