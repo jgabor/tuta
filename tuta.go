@@ -84,8 +84,8 @@ func playNotification(soundType string) error {
 	// Write as stereo (interleaved L/R channels)
 	buf := &bytes.Buffer{}
 	for _, s := range mono {
-		binary.Write(buf, binary.LittleEndian, s)
-		binary.Write(buf, binary.LittleEndian, s)
+		_ = binary.Write(buf, binary.LittleEndian, s)
+		_ = binary.Write(buf, binary.LittleEndian, s)
 	}
 
 	ctx, ready, err := oto.NewContext(sampleRate, 2, oto.FormatFloat32LE)
@@ -98,14 +98,40 @@ func playNotification(soundType string) error {
 	player.Play()
 	duration := time.Duration(float64(len(mono))/sampleRate*float64(time.Second)) + 200*time.Millisecond
 	time.Sleep(duration)
-	player.Close()
+	_ = player.Close()
 	return nil
 }
 
+func usage() {
+	fmt.Printf(`tuta v%s — Tiny Utility for Tone Alerts
+Author: Jonathan Gabor
+
+Usage:
+  tuta [sound]
+
+Available sounds:
+  success   ascending C major arpeggio (default)
+  error     low descending buzz
+  warning   two radar-style pings
+  info      single neutral tone
+  complete  ascending triad
+
+Options:
+  -h, --help      show this help
+  -v, --version   show version
+`, version)
+}
+
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		fmt.Println("tuta", version)
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--version", "-v":
+			fmt.Println("tuta", version)
+			return
+		case "--help", "-h":
+			usage()
+			return
+		}
 	}
 	soundType := "success"
 	if len(os.Args) > 1 {
