@@ -1,6 +1,6 @@
 # tuta — Tiny Utility for Tone Alerts
 
-A minimal CLI notification sound player. Plays short synthesized tones for use in scripts, build pipelines, or anywhere you want audible feedback.
+A tiny CLI tool that plays synthesized notification tones for scripts and build pipelines. Each sound is designed around music theory principles — interval quality, pitch contour, waveform choice — so they're immediately recognizable without being annoying.
 
 ## Install
 
