@@ -1,4 +1,4 @@
-module tuta
+module github.com/jgabor/tuta
 
 go 1.21
 

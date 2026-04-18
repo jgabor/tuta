@@ -13,6 +13,12 @@ go build -o tuta .
 sudo mv tuta /usr/local/bin/
 ```
 
+Or install directly with `go install`:
+
+```sh
+go install github.com/jgabor/tuta@latest
+```
+
 ## Usage
 
 ```sh
@@ -21,7 +27,7 @@ tuta --help
 tuta --version
 ```
 
-Available sounds: `success`, `error`, `warning`, `info`, `complete`
+Available sounds: `success`, `error`, `warning`, `info`, `complete`, `increase`, `decrease`, `notify`, `progress`, `confirm`, `cancel`, `ready`, `timeout`
 
 Defaults to `success` if no argument is given or the argument is unrecognized.
 
@@ -34,6 +40,14 @@ Defaults to `success` if no argument is given or the argument is unrecognized.
 | warning  | two radar-style pings at C6    | sine     |
 | info     | single neutral tone            | sine     |
 | complete | ascending triad (B4 → D5 → G5) | triangle |
+| increase | ascending major triad (C4 → E4 → G4) | sine     |
+| decrease | descending minor triad (G4 → Eb4 → C4) | sine     |
+| notify   | two bright pings at A5         | sine     |
+| progress | three even pulses at E4        | triangle |
+| confirm  | ascending perfect fifth (C5 → G5) | sine     |
+| cancel   | descending minor second (B4 → Bb3) | triangle |
+| ready    | single sustained tone at C5    | sine     |
+| timeout  | descending square buzz (E4 → C4) | square   |
 
 ---
 

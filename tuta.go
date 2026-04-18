@@ -44,6 +44,40 @@ var sounds = map[string][]tone{
 		{587.33, 0.10, "triangle", 0.25},
 		{783.99, 0.40, "triangle", 0.35},
 	},
+	"increase": {
+		{261.63, 0.08, "sine", 0.2},
+		{329.63, 0.08, "sine", 0.2},
+		{392.00, 0.15, "sine", 0.35},
+	},
+	"decrease": {
+		{392.00, 0.08, "sine", 0.2},
+		{311.13, 0.08, "sine", 0.2},
+		{261.63, 0.15, "sine", 0.35},
+	},
+	"notify": {
+		{880.00, 0.10, "sine", 0.3},
+		{880.00, 0.18, "sine", 0.35},
+	},
+	"progress": {
+		{329.63, 0.08, "triangle", 0.15},
+		{329.63, 0.08, "triangle", 0.15},
+		{329.63, 0.08, "triangle", 0.15},
+	},
+	"confirm": {
+		{523.25, 0.08, "sine", 0.2},
+		{783.99, 0.20, "sine", 0.35},
+	},
+	"cancel": {
+		{493.88, 0.10, "triangle", 0.2},
+		{233.08, 0.30, "triangle", 0.35},
+	},
+	"ready": {
+		{523.25, 0.25, "sine", 0.25},
+	},
+	"timeout": {
+		{329.63, 0.15, "square", 0.25},
+		{261.63, 0.35, "square", 0.35},
+	},
 }
 
 func generateTone(t tone) []float32 {
@@ -115,6 +149,14 @@ Available sounds:
   warning   two radar-style pings
   info      single neutral tone
   complete  ascending triad
+  increase  ascending major triad (C4-E4-G4)
+  decrease  descending minor triad (G4-Eb4-C4)
+  notify    two bright high pings
+  progress  three even pulses
+  confirm   ascending perfect fifth
+  cancel    descending minor second
+  ready     single sustained tone
+  timeout   descending square buzz
 
 Options:
   -h, --help      show this help
