@@ -137,7 +137,7 @@ func playNotification(soundType string) error {
 }
 
 func usage() {
-	fmt.Printf(`tuta v%s — Tiny Utility for Tone Alerts
+	fmt.Printf(`tuta %s — Tiny Utility for Tone Alerts
 Author: Jonathan Gabor
 
 Usage:
