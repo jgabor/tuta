@@ -13,7 +13,7 @@ import (
 
 const sampleRate = 44100
 
-var version = "0.1.0"
+var version = "0.3.0"
 
 type tone struct {
 	frequency float64
@@ -29,20 +29,21 @@ var sounds = map[string][]tone{
 		{783.99, 0.15, "sine", 0.35},
 	},
 	"error": {
-		{150, 0.15, "square", 0.25},
-		{110, 0.35, "square", 0.35},
+		{146.83, 0.10, "square", 0.30},
+		{103.83, 0.30, "square", 0.35},
 	},
 	"warning": {
-		{1046.50, 0.12, "sine", 0.35},
-		{1046.50, 0.20, "sine", 0.35},
+		{1046.50, 0.10, "triangle", 0.30},
+		{1174.66, 0.10, "triangle", 0.30},
+		{1046.50, 0.18, "triangle", 0.35},
 	},
 	"info": {
-		{523.25, 0.15, "sine", 0.35},
+		{523.25, 0.10, "sine", 0.40},
 	},
 	"complete": {
-		{493.88, 0.10, "triangle", 0.18},
-		{587.33, 0.10, "triangle", 0.25},
-		{783.99, 0.40, "triangle", 0.35},
+		{349.23, 0.10, "triangle", 0.18},
+		{440.00, 0.10, "triangle", 0.25},
+		{523.25, 0.40, "triangle", 0.35},
 	},
 	"increase": {
 		{261.63, 0.08, "sine", 0.2},
@@ -50,33 +51,29 @@ var sounds = map[string][]tone{
 		{392.00, 0.15, "sine", 0.35},
 	},
 	"decrease": {
-		{392.00, 0.08, "sine", 0.2},
-		{311.13, 0.08, "sine", 0.2},
-		{261.63, 0.15, "sine", 0.35},
+		{392.00, 0.08, "triangle", 0.35},
+		{311.13, 0.08, "triangle", 0.25},
+		{261.63, 0.15, "triangle", 0.15},
 	},
 	"notify": {
-		{880.00, 0.10, "sine", 0.3},
-		{880.00, 0.18, "sine", 0.35},
+		{880.00, 0.10, "sine", 0.30},
+		{1046.50, 0.18, "sine", 0.35},
 	},
 	"progress": {
 		{329.63, 0.08, "triangle", 0.15},
-		{329.63, 0.08, "triangle", 0.15},
-		{329.63, 0.08, "triangle", 0.15},
+		{392.00, 0.08, "triangle", 0.15},
+		{493.88, 0.10, "triangle", 0.20},
 	},
 	"confirm": {
 		{523.25, 0.08, "sine", 0.2},
-		{783.99, 0.20, "sine", 0.35},
+		{783.99, 0.35, "sine", 0.25},
 	},
 	"cancel": {
-		{493.88, 0.10, "triangle", 0.2},
-		{233.08, 0.30, "triangle", 0.35},
+		{493.88, 0.18, "triangle", 0.30},
 	},
 	"ready": {
-		{523.25, 0.25, "sine", 0.25},
-	},
-	"timeout": {
-		{329.63, 0.15, "square", 0.25},
-		{261.63, 0.35, "square", 0.35},
+		{523.25, 0.15, "triangle", 0.20},
+		{659.25, 0.12, "triangle", 0.25},
 	},
 }
 
@@ -102,17 +99,45 @@ func generateTone(t tone) []float32 {
 	return wave
 }
 
-func playNotification(soundType string) error {
-	tones, ok := sounds[soundType]
-	if !ok {
-		tones = sounds["success"]
+func generateSweep(fromFreq, toFreq, duration float64, waveform string, volume float64) []float32 {
+	samples := int(sampleRate * duration)
+	wave := make([]float32, samples)
+	for i := range wave {
+		ts := float64(i) / sampleRate
+		freq := fromFreq + (toFreq-fromFreq)*ts/duration
+		var s float64
+		switch waveform {
+		case "sine":
+			s = math.Sin(2 * math.Pi * freq * ts)
+		case "square":
+			s = math.Copysign(1, math.Sin(2*math.Pi*freq*ts))
+		case "triangle":
+			p := ts*freq - math.Floor(ts*freq+0.5)
+			s = 2*math.Abs(2*p) - 1
+		default:
+			s = math.Sin(2 * math.Pi * freq * ts)
+		}
+		wave[i] = float32(s * math.Exp(-3*ts/duration) * volume)
 	}
+	return wave
+}
 
-	gap := make([]float32, int(sampleRate*0.02))
+func playNotification(soundType string) error {
 	var mono []float32
-	for _, t := range tones {
-		mono = append(mono, generateTone(t)...)
-		mono = append(mono, gap...)
+
+	if soundType == "timeout" {
+		mono = generateSweep(329.63, 233.08, 0.50, "triangle", 0.12)
+	} else {
+		tones, ok := sounds[soundType]
+		if !ok {
+			tones = sounds["success"]
+		}
+
+		gap := make([]float32, int(sampleRate*0.02))
+		for _, t := range tones {
+			mono = append(mono, generateTone(t)...)
+			mono = append(mono, gap...)
+		}
 	}
 
 	// Write as stereo (interleaved L/R channels)
@@ -145,18 +170,18 @@ Usage:
 
 Available sounds:
   success   ascending C major arpeggio (default)
-  error     low descending buzz
-  warning   two radar-style pings
-  info      single neutral tone
-  complete  ascending triad
+  error     descending tritone buzz (D3-Ab2)
+  warning   three pings with major second tension
+  info      short neutral blip
+  complete  ascending F major triad (F4-A4-C5)
   increase  ascending major triad (C4-E4-G4)
-  decrease  descending minor triad (G4-Eb4-C4)
-  notify    two bright high pings
-  progress  three even pulses
-  confirm   ascending perfect fifth
-  cancel    descending minor second
-  ready     single sustained tone
-  timeout   descending square buzz
+  decrease  descending minor triad, fading (G4-Eb4-C4)
+  notify    ascending minor third ping (A5-C6)
+  progress  ascending major triad (E4-G4-B4)
+  confirm   ascending perfect fifth (C5-G5)
+  cancel    single tone (B4)
+  ready     ascending major third (C5-E5, triangle)
+  timeout   descending frequency sweep (E4-Bb3)
 
 Options:
   -h, --help      show this help
@@ -177,7 +202,7 @@ func main() {
 	}
 	soundType := "success"
 	if len(os.Args) > 1 {
-		if _, ok := sounds[os.Args[1]]; ok {
+		if _, ok := sounds[os.Args[1]]; ok || os.Args[1] == "timeout" {
 			soundType = os.Args[1]
 		}
 	}
