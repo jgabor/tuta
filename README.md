@@ -33,21 +33,21 @@ Defaults to `success` if no argument is given or the argument is unrecognized.
 
 ## Sounds
 
-| Sound    | Character                      | Waveform |
-| -------- | ------------------------------ | -------- |
-| success  | ascending C major arpeggio     | sine     |
-| error    | low descending buzz (D3 → A2)  | square   |
-| warning  | two radar-style pings at C6    | sine     |
-| info     | single neutral tone            | sine     |
-| complete | ascending triad (B4 → D5 → G5) | triangle |
-| increase | ascending major triad (C4 → E4 → G4) | sine     |
-| decrease | descending minor triad (G4 → Eb4 → C4) | sine     |
-| notify   | two bright pings at A5         | sine     |
-| progress | three even pulses at E4        | triangle |
-| confirm  | ascending perfect fifth (C5 → G5) | sine     |
-| cancel   | descending minor second (B4 → Bb3) | triangle |
-| ready    | single sustained tone at C5    | sine     |
-| timeout  | descending square buzz (E4 → C4) | square   |
+| Sound    | Character                                   | Waveform |
+| -------- | ------------------------------------------- | -------- |
+| success  | ascending C major arpeggio                  | sine     |
+| error    | descending tritone buzz (D3 → Ab2)          | square   |
+| warning  | three pings with major second (C6 → D6)     | triangle |
+| info     | short neutral blip at C5                    | sine     |
+| complete | ascending F major triad (F4 → A4 → C5)      | triangle |
+| increase | ascending major triad (C4 → E4 → G4)        | sine     |
+| decrease | descending minor triad, fading (G4 → Eb4 → C4) | triangle |
+| notify   | ascending minor third ping (A5 → C6)        | sine     |
+| progress | ascending major triad (E4 → G4 → B4)        | triangle |
+| confirm  | ascending perfect fifth (C5 → G5)           | sine     |
+| cancel   | single tone (B4)                            | triangle |
+| ready    | ascending major third (C5 → E5)             | triangle |
+| timeout  | descending frequency sweep (E4 → Bb3)      | triangle |
 
 ---
 
@@ -78,7 +78,7 @@ The `success` sound plays **C5 → E5 → G5**, a C major arpeggio. The interval
 - **Descending** pitch signals failure, winding down, negativity
 - **Flat / single tone** is neutral and informational
 
-The `error` sound descends from D3 to A2. The `complete` sound ascends B4 → D5 → G5 with a sustained final note.
+The `error` sound descends through a tritone from D3 to Ab2. The `complete` sound ascends F4 → A4 → C5 with a sustained final note.
 
 ### 3. Waveform → timbre
 
