@@ -1,6 +1,42 @@
-# tuta — Tiny Utility for Tone Alerts
+# tuta: tiny utility for tone alerts
 
 A tiny CLI tool that plays synthesized notification tones for scripts and build pipelines. Each sound is designed around music theory principles — interval quality, pitch contour, waveform choice — so they're immediately recognizable without being annoying.
+
+<details>
+<summary>For LLMs</summary>
+
+Copy this into any coding agent's custom instructions, hooks, or command wrapper:
+
+```
+Ensure `tuta` is available; if missing, install:
+`go install github.com/jgabor/tuta@latest`
+
+For each command that runs longer than 5s, play one sound after completion
+using native lifecycle hooks if available; otherwise wrap command execution.
+
+Preferred mapping:
+- `success` success
+- `error` failure
+- `warning` partial success, non-zero-with-output, or warnings
+- `info` short non-critical info update
+- `complete` end of a multi-step workflow
+- `increase` notable improvement/regression fix
+- `decrease` downgrade, rollback, or reduced metric
+- `notify` user attention needed (non-error)
+- `progress` milestone reached in long-running work
+- `confirm` explicit user confirmation/action applied
+- `cancel` user/system canceled operation
+- `ready` waiting for user input
+- `timeout` command timed out / watchdog hit
+
+Fallbacks:
+- Unknown status -> `notify`
+- Unrecognized sound name -> `success`
+
+Command format: `tuta <sound>`
+```
+
+</details>
 
 ## Install
 
@@ -33,21 +69,21 @@ Defaults to `success` if no argument is given or the argument is unrecognized.
 
 ## Sounds
 
-| Sound    | Character                                   | Waveform |
-| -------- | ------------------------------------------- | -------- |
-| success  | ascending C major arpeggio                  | sine     |
-| error    | descending tritone buzz (D3 → Ab2)          | square   |
-| warning  | three pings with major second (C6 → D6)     | triangle |
-| info     | short neutral blip at C5                    | sine     |
-| complete | ascending F major triad (F4 → A4 → C5)      | triangle |
-| increase | ascending major triad (C4 → E4 → G4)        | sine     |
+| Sound    | Character                                      | Waveform |
+| -------- | ---------------------------------------------- | -------- |
+| success  | ascending C major arpeggio                     | sine     |
+| error    | descending tritone buzz (D3 → Ab2)             | square   |
+| warning  | three pings with major second (C6 → D6)        | triangle |
+| info     | short neutral blip at C5                       | sine     |
+| complete | ascending F major triad (F4 → A4 → C5)         | triangle |
+| increase | ascending major triad (C4 → E4 → G4)           | sine     |
 | decrease | descending minor triad, fading (G4 → Eb4 → C4) | triangle |
-| notify   | ascending minor third ping (A5 → C6)        | sine     |
-| progress | ascending major triad (E4 → G4 → B4)        | triangle |
-| confirm  | ascending perfect fifth (C5 → G5)           | sine     |
-| cancel   | single tone (B4)                            | triangle |
-| ready    | ascending major third (C5 → E5)             | triangle |
-| timeout  | descending frequency sweep (E4 → Bb3)      | triangle |
+| notify   | ascending minor third ping (A5 → C6)           | sine     |
+| progress | ascending major triad (E4 → G4 → B4)           | triangle |
+| confirm  | ascending perfect fifth (C5 → G5)              | sine     |
+| cancel   | single tone (B4)                               | triangle |
+| ready    | ascending major third (C5 → E5)                | triangle |
+| timeout  | descending frequency sweep (E4 → Bb3)          | triangle |
 
 ---
 
