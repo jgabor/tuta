@@ -34,6 +34,8 @@ Fallbacks:
 - Unrecognized sound name -> `success`
 
 Command format: `tuta <sound>`
+
+From Go, use `import "github.com/jgabor/tuta/alert"` and `alert.Play("<sound>")` with the same sound names.
 ```
 
 </details>
@@ -54,6 +56,24 @@ Or install directly with `go install`:
 ```sh
 go install github.com/jgabor/tuta@latest
 ```
+
+## Library
+
+Import the `alert` package to play sounds from Go programs:
+
+```go
+import "github.com/jgabor/tuta/alert"
+
+if err := alert.Play("error"); err != nil {
+    // handle audio failure
+}
+```
+
+List built-in sound names with `alert.Names()`.
+
+Library consumers use the same audio stack as the CLI ([oto](https://github.com/hajimehoshi/oto)); on Linux, building typically requires ALSA development headers (`libasound2-dev`).
+
+While this module is on v0.x, the exported API may evolve in minor releases. A future v2+ breaking change would use a `/v2` import path.
 
 ## Usage
 
