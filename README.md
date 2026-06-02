@@ -8,34 +8,38 @@ A tiny CLI tool that plays synthesized notification tones for scripts and build 
 Copy this into any coding agent's custom instructions, hooks, or command wrapper:
 
 ```
-Ensure `tuta` is available; if missing, install:
-`go install github.com/jgabor/tuta@latest`
+Install: go install github.com/jgabor/tuta@latest
+Missing tuta at runtime → exit 0; never block the host.
 
-For each command that runs longer than 5s, play one sound after completion
-using native lifecycle hooks if available; otherwise wrap command execution.
+Long agent shell commands (≥5000ms, excl. approval wait): play one sound on completion.
+Wire via the host's native after-command lifecycle (hooks, plugins, wrappers) for shell/terminal tools.
+Prefer callbacks that expose exit code and output; if exit code is unavailable, use output-only hooks.
+One completion handler per command — no duplicate after-hooks for the same event.
 
-Preferred mapping:
-- `success` success
-- `error` failure
-- `warning` partial success, non-zero-with-output, or warnings
-- `info` short non-critical info update
-- `complete` end of a multi-step workflow
-- `increase` notable improvement/regression fix
-- `decrease` downgrade, rollback, or reduced metric
-- `notify` user attention needed (non-error)
-- `progress` milestone reached in long-running work
-- `confirm` explicit user confirmation/action applied
-- `cancel` user/system canceled operation
-- `ready` waiting for user input
-- `timeout` command timed out / watchdog hit
+Required data (field names vary by host):
+  duration in milliseconds (excl. approval/user wait)
+  exit code when available
+  stdout and stderr when available, or a single combined output string
 
-Fallbacks:
-- Unknown status -> `notify`
-- Unrecognized sound name -> `success`
+Sound selection (first match wins):
+  1. Explicit status, result, sound, or notification → map to a sound name below
+  2. Timeout flag or output mentions timed out / timeout / watchdog → timeout
+  3. Output (stdout or stderr) mentions warn, warning, deprecated, partial, or caution → warning
+  4. Exit code 0 → success
+  5. Non-zero exit with any output → warning
+  6. Non-zero exit, no stdout and no stderr → error
+  7. Exit code missing → notify
+On command failure/cancellation: timed out → timeout; user or system interrupt/denial → cancel
 
-Command format: `tuta <sound>`
+Lifecycle (optional, separate handlers, no 5s gate):
+  Semantic intents — map each row to the closest native event your host exposes; omit unmapped rows.
+  turn done → ready (debounce 2s) | aborted → cancel | failed → error
+  compact → complete | ask → notify | confirm → confirm | milestone → progress
+  increase, decrease, info → invoke tuta manually only
 
-From Go, use `import "github.com/jgabor/tuta/alert"` and `alert.Play("<sound>")` with the same sound names.
+Fallbacks: unknown status → notify; bad sound name → success; tuta error → retry success (handler still exit 0)
+Invoke: tuta <sound>  |  Go: alert.Play("<sound>")
+Sounds: success, error, warning, info, complete, increase, decrease, notify, progress, confirm, cancel, ready, timeout
 ```
 
 </details>
