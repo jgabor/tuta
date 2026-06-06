@@ -18,8 +18,8 @@ var sounds = map[string][]tone{
 		{783.99, 0.15, "sine", 0.35},
 	},
 	"error": {
-		{146.83, 0.10, "square", 0.30},
-		{103.83, 0.30, "square", 0.35},
+		{146.83, 0.10, "square", 0.16},
+		{103.83, 0.30, "square", 0.19},
 	},
 	"warning": {
 		{1046.50, 0.10, "triangle", 0.30},
@@ -27,7 +27,7 @@ var sounds = map[string][]tone{
 		{1046.50, 0.18, "triangle", 0.35},
 	},
 	"info": {
-		{523.25, 0.10, "sine", 0.40},
+		{523.25, 0.10, "sine", 0.27},
 	},
 	"complete": {
 		{349.23, 0.10, "triangle", 0.18},
@@ -49,9 +49,9 @@ var sounds = map[string][]tone{
 		{1046.50, 0.18, "sine", 0.35},
 	},
 	"progress": {
-		{329.63, 0.08, "triangle", 0.15},
-		{392.00, 0.08, "triangle", 0.15},
-		{493.88, 0.10, "triangle", 0.20},
+		{329.63, 0.08, "triangle", 0.29},
+		{392.00, 0.08, "triangle", 0.29},
+		{493.88, 0.10, "triangle", 0.39},
 	},
 	"confirm": {
 		{523.25, 0.08, "sine", 0.2},
@@ -61,8 +61,8 @@ var sounds = map[string][]tone{
 		{493.88, 0.18, "triangle", 0.30},
 	},
 	"ready": {
-		{523.25, 0.15, "triangle", 0.20},
-		{659.25, 0.12, "triangle", 0.25},
+		{523.25, 0.15, "triangle", 0.29},
+		{659.25, 0.12, "triangle", 0.36},
 	},
 }
 
