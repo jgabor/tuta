@@ -29,52 +29,66 @@ func version() string {
 	return strings.TrimSpace(string(out))
 }
 
-// Build compiles the tuta binary into ./build/ with size-optimized flags.
-func Build() error {
-	if err := os.MkdirAll(buildDir, 0o755); err != nil {
-		return err
+func wantDebug(flag *bool) bool {
+	if flag != nil && *flag {
+		return true
 	}
-	bin := filepath.Join(buildDir, "tuta")
-	if runtime.GOOS == "windows" {
-		bin += ".exe"
+	v := os.Getenv("DEBUG")
+	return v == "1" || strings.EqualFold(v, "true")
+}
+
+func goArgs(debug bool) []string {
+	args := []string{"-ldflags", ldflags()}
+	if debug {
+		args = append([]string{"-tags", "debug"}, args...)
 	}
-	_ = os.Remove(bin)
-	fmt.Printf("building %s (%s)\n", bin, version())
-	cmd := exec.Command("go", "build", "-ldflags", ldflags(), "-o", bin, ".")
+	return args
+}
+
+// compile builds or installs tuta. local writes ./build/tuta; otherwise go install to GOBIN.
+func compile(local, debug bool) error {
+	args := goArgs(debug)
+	kind := "release"
+	if debug {
+		kind = "debug"
+	}
+
+	if local {
+		if err := os.MkdirAll(buildDir, 0o755); err != nil {
+			return err
+		}
+		bin := filepath.Join(buildDir, "tuta")
+		if runtime.GOOS == "windows" {
+			bin += ".exe"
+		}
+		_ = os.Remove(bin)
+		fmt.Printf("building %s (%s, %s)\n", bin, kind, version())
+		cmd := exec.Command("go", append([]string{"build", "-o", bin}, append(args, ".")...)...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	fmt.Printf("installing tuta (%s, %s) → $(go env GOBIN)/tuta\n", kind, version())
+	cmd := exec.Command("go", append([]string{"install"}, append(args, ".")...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-// Install installs the tuta binary to $GOPATH/bin.
+// Build compiles tuta into ./build/. Pass -debug=true or set DEBUG=1 for tuta debug commands.
+func Build(debug *bool) error {
+	return compile(true, wantDebug(debug))
+}
+
+// Install installs a debug tuta to go env GOBIN (source dev install).
 func Install() error {
-	fmt.Printf("installing tuta (%s)\n", version())
-	cmd := exec.Command("go", "install", "-ldflags", ldflags(), ".")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return compile(false, true)
 }
 
 // Test runs all tests with the race detector (includes debug-tagged soundcheck tests).
 func Test() error {
 	cmd := exec.Command("go", "test", "-tags", "debug", "./...", "-race")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-// BuildDebug compiles tuta with debug commands enabled.
-func BuildDebug() error {
-	if err := os.MkdirAll(buildDir, 0o755); err != nil {
-		return err
-	}
-	bin := filepath.Join(buildDir, "tuta")
-	if runtime.GOOS == "windows" {
-		bin += ".exe"
-	}
-	_ = os.Remove(bin)
-	fmt.Printf("building %s with debug (%s)\n", bin, version())
-	cmd := exec.Command("go", "build", "-tags", "debug", "-ldflags", ldflags(), "-o", bin, ".")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

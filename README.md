@@ -9,6 +9,8 @@ Copy this into any coding agent's custom instructions, hooks, or command wrapper
 
 ```
 Install: go install github.com/jgabor/tuta@latest
+From source: mage build → ./build/tuta; mage install → $GOBIN/tuta (debug); mage test
+Never go build -o tuta . in repo root (see AGENTS.md)
 Missing tuta at runtime → exit 0; never block the host.
 
 Long agent shell commands (≥5000ms, excl. approval wait): play one sound on completion.
@@ -38,7 +40,7 @@ Lifecycle (optional, separate handlers, no 5s gate):
   increase, decrease, info → invoke tuta manually only
 
 Fallbacks: unknown status → notify; bad sound name → success; tuta error → retry success (handler still exit 0)
-Invoke: tuta <sound>  |  Go: alert.Play("<sound>")
+Invoke: tuta <sound> (installed) or ./build/tuta <sound> (in-repo)  |  Go: alert.Play("<sound>")
 Sounds: success, error, warning, info, complete, increase, decrease, notify, progress, confirm, cancel, ready, timeout
 ```
 
@@ -48,18 +50,45 @@ Sounds: success, error, warning, info, complete, increase, decrease, notify, pro
 
 Pre-built binaries are available on the [releases page](../../releases).
 
-To build and install from source:
+To build from source ([mage](https://magefile.org/) required, Go 1.26+):
 
 ```sh
-go build -o tuta .
-sudo mv tuta /usr/local/bin/
+go install github.com/magefile/mage@latest
+mage build                    # release → ./build/tuta
+mage build -debug=true        # debug → ./build/tuta (includes tuta debug)
+DEBUG=1 mage build            # same as -debug=true
+mage install                  # debug → $(go env GOBIN)/tuta
 ```
 
-Or install directly with `go install`:
+| Command | Output | `tuta debug` |
+| ------- | ------ | ------------ |
+| `mage build` | `./build/tuta` | no |
+| `mage build -debug=true` | `./build/tuta` | yes |
+| `mage install` | `$(go env GOBIN)/tuta` | yes |
+| `go install …@latest` | `$(go env GOBIN)/tuta` | no |
+
+Ensure `$(go env GOBIN)` is on your `PATH` (often `~/.local/share/go/bin` with a default Go install).
+
+Do not run `go build -o tuta .` in the repo root — that leaves a stray binary on your PATH. See [AGENTS.md](AGENTS.md).
+
+Or install a tagged release directly with `go install`:
 
 ```sh
 go install github.com/jgabor/tuta@latest
 ```
+
+### Development
+
+```sh
+mage test
+mage build -debug=true
+./build/tuta export -o sounds/
+./build/tuta debug sounds all sounds/
+```
+
+Or install a debug binary to PATH: `mage install`, then `tuta export …` and `tuta debug sounds all sounds/`.
+
+If `tuta debug` plays `success` instead of running checks, you have a release binary — rebuild with `-debug=true` or run `mage install`.
 
 ## Library
 
@@ -85,15 +114,18 @@ if err := alert.ExportFLAC("error.flac", "error", alert.FLACOptions{}); err != n
 
 `FLACOptions` defaults to mono 16-bit at compression level 5. Use `Channels: 2` for stereo (L=R, same as playback) or `BitDepth: 24` for higher precision.
 
-Library consumers use the same audio stack as the CLI ([oto](https://github.com/hajimehoshi/oto)); on Linux, building typically requires ALSA development headers (`libasound2-dev`). FLAC export is pure Go and does not require ALSA.
+Library consumers use the same audio stack as the CLI ([oto](https://github.com/hajimehoshi/oto)); on Linux, building from source typically requires ALSA development headers (`libasound2-dev`), and hearing sounds at runtime requires ALSA. FLAC export is pure Go and does not require ALSA.
 
 While this module is on v0.x, the exported API may evolve in minor releases. A future v2+ breaking change would use a `/v2` import path.
 
 ## Usage
 
+In-repo dev: prefix with `./build/tuta`. After `mage install` or `go install`, use `tuta` from PATH.
+
 ```sh
 tuta [sound]
 tuta export [-o DIR] [-mono|-stereo] [-depth 16|24] [sound ...]
+tuta debug sounds <cmd> [dir]   # debug builds only (mage build -debug=true or mage install)
 tuta --help
 tuta --version
 ```
@@ -107,12 +139,12 @@ Defaults to `success` if no argument is given or the argument is unrecognized.
 Export synthesized sounds as FLAC files for offline analysis (spectrum, fingerprinting, etc.):
 
 ```sh
-tuta export -o sounds/              # all sounds → sounds/*.flac
-tuta export -o sounds/ success error
-tuta export -stereo -depth 24 -o sounds/ success
+./build/tuta export -o sounds/              # all sounds → sounds/*.flac
+./build/tuta export -o sounds/ success error
+./build/tuta export -stereo -depth 24 -o sounds/ success
 ```
 
-Output defaults to mono 16-bit FLAC at 44.1 kHz. The files contain the same synthesized audio that `tuta <sound>` would play (without speaker capture).
+Output defaults to mono 16-bit FLAC at 44.1 kHz. The files contain the same synthesized audio that `tuta <sound>` would play (without speaker capture). `sounds/` is gitignored.
 
 ## Sounds
 
