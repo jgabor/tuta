@@ -9,7 +9,7 @@ import (
 	"github.com/jgabor/tuta/alert"
 )
 
-var version = "0.4.0"
+var version = "0.5.0"
 
 // Optional hooks registered from debug.go when built with -tags debug.
 var (
