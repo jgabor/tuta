@@ -55,9 +55,26 @@ func Install() error {
 	return cmd.Run()
 }
 
-// Test runs all tests with the race detector.
+// Test runs all tests with the race detector (includes debug-tagged soundcheck tests).
 func Test() error {
-	cmd := exec.Command("go", "test", "./...", "-race")
+	cmd := exec.Command("go", "test", "-tags", "debug", "./...", "-race")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BuildDebug compiles tuta with debug commands enabled.
+func BuildDebug() error {
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		return err
+	}
+	bin := filepath.Join(buildDir, "tuta")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	_ = os.Remove(bin)
+	fmt.Printf("building %s with debug (%s)\n", bin, version())
+	cmd := exec.Command("go", "build", "-tags", "debug", "-ldflags", ldflags(), "-o", bin, ".")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

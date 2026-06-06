@@ -75,7 +75,17 @@ if err := alert.Play("error"); err != nil {
 
 List built-in sound names with `alert.Names()`.
 
-Library consumers use the same audio stack as the CLI ([oto](https://github.com/hajimehoshi/oto)); on Linux, building typically requires ALSA development headers (`libasound2-dev`).
+Render synthesized mono PCM at 44.1 kHz with `alert.Render(name)` or export lossless FLAC with [go-flac](https://github.com/tphakala/go-flac):
+
+```go
+if err := alert.ExportFLAC("error.flac", "error", alert.FLACOptions{}); err != nil {
+    // handle export failure
+}
+```
+
+`FLACOptions` defaults to mono 16-bit at compression level 5. Use `Channels: 2` for stereo (L=R, same as playback) or `BitDepth: 24` for higher precision.
+
+Library consumers use the same audio stack as the CLI ([oto](https://github.com/hajimehoshi/oto)); on Linux, building typically requires ALSA development headers (`libasound2-dev`). FLAC export is pure Go and does not require ALSA.
 
 While this module is on v0.x, the exported API may evolve in minor releases. A future v2+ breaking change would use a `/v2` import path.
 
@@ -83,6 +93,7 @@ While this module is on v0.x, the exported API may evolve in minor releases. A f
 
 ```sh
 tuta [sound]
+tuta export [-o DIR] [-mono|-stereo] [-depth 16|24] [sound ...]
 tuta --help
 tuta --version
 ```
@@ -90,6 +101,18 @@ tuta --version
 Available sounds: `success`, `error`, `warning`, `info`, `complete`, `increase`, `decrease`, `notify`, `progress`, `confirm`, `cancel`, `ready`, `timeout`
 
 Defaults to `success` if no argument is given or the argument is unrecognized.
+
+### Export FLAC
+
+Export synthesized sounds as FLAC files for offline analysis (spectrum, fingerprinting, etc.):
+
+```sh
+tuta export -o sounds/              # all sounds → sounds/*.flac
+tuta export -o sounds/ success error
+tuta export -stereo -depth 24 -o sounds/ success
+```
+
+Output defaults to mono 16-bit FLAC at 44.1 kHz. The files contain the same synthesized audio that `tuta <sound>` would play (without speaker capture).
 
 ## Sounds
 
