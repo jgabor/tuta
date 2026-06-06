@@ -44,6 +44,6 @@ Debug commands:
 
 Sound check commands: volume, duration, pitch, spectrum, distinct, all
   tuta debug sounds all
-  tuta debug sounds volume -t 2 sounds/
+  tuta debug sounds volume -t 2 tmp/
 `
 }

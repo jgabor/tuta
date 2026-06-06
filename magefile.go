@@ -94,6 +94,42 @@ func Test() error {
 	return cmd.Run()
 }
 
+// Debug runs `tuta debug sounds all tmp/` via go run with the debug build
+// tag, so no separate build or install step is required. If `tmp/` has no
+// FLAC files, exports them first.
+func Debug() error {
+	const dir = "tmp/"
+	if !hasFLACs(dir) {
+		if err := runTuta("export", "-o", dir); err != nil {
+			return err
+		}
+	}
+	return runTuta("debug", "sounds", "all", dir)
+}
+
+func runTuta(args ...string) error {
+	cmdArgs := append([]string{"run"}, goArgs(true)...)
+	cmdArgs = append(cmdArgs, ".")
+	cmdArgs = append(cmdArgs, args...)
+	cmd := exec.Command("go", cmdArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func hasFLACs(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".flac") {
+			return true
+		}
+	}
+	return false
+}
+
 // Clean removes the build directory.
 func Clean() error {
 	fmt.Println("cleaning build/")

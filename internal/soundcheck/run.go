@@ -102,12 +102,12 @@ Options:
   -t, --threshold N   volume outlier threshold in dB (volume/all only)
   -h, --help          show this help
 
-Default directory: sounds/
+Default directory: tmp/
 
 Examples:
   tuta debug sounds all
-  tuta debug sounds volume -t 2 sounds/
-  tuta debug sounds pitch sounds/
+  tuta debug sounds volume -t 2 tmp/
+  tuta debug sounds pitch tmp/
 `
 }
 
@@ -121,7 +121,7 @@ func Run(args []string) int {
 	cmd := args[0]
 	args = args[1:]
 
-	dir := "sounds"
+	dir := "tmp"
 	threshold := 3.0
 
 	switch cmd {

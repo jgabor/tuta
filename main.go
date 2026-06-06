@@ -49,7 +49,7 @@ Options:
   -v, --version   show version
 
 Export options:
-  -o DIR          output directory (default: ./sounds)
+  -o DIR          output directory (default: ./tmp)
   -mono           export mono FLAC (default)
   -stereo         export stereo FLAC (L=R, same as playback)
   -depth N        bit depth: 16 or 24 (default: 16)
@@ -96,7 +96,7 @@ func runExport(args []string) error {
 	fs := flag.NewFlagSet("export", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
-	outDir := fs.String("o", "./sounds", "output directory")
+	outDir := fs.String("o", "./tmp", "output directory")
 	mono := fs.Bool("mono", true, "export mono FLAC")
 	stereo := fs.Bool("stereo", false, "export stereo FLAC (L=R)")
 	depth := fs.Int("depth", 16, "bit depth: 16 or 24")

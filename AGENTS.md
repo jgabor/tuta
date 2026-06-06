@@ -29,9 +29,15 @@ Version string comes from `git describe` via mage ldflags; `main.go` `version` i
 After exporting FLACs, validate with a debug build:
 
 ```sh
-mage build -debug=true    # or: mage install && tuta ...
-./build/tuta export -o sounds/
-./build/tuta debug sounds all sounds/
+mage debug                            # exports tmp/ if needed, then runs all checks
+```
+
+Or build a debug binary and call the CLI directly:
+
+```sh
+mage build -debug=true                # or: mage install && tuta ...
+./build/tuta export -o tmp/
+./build/tuta debug sounds all tmp/
 ```
 
 Release builds (`mage build` without `-debug`) do not include `tuta debug`; on release, `tuta debug` silently plays `success`.
@@ -39,10 +45,10 @@ Release builds (`mage build` without `-debug`) do not include `tuta debug`; on r
 ## Export and analysis
 
 ```sh
-./build/tuta export -o sounds/     # all sounds → sounds/*.flac
+./build/tuta export -o tmp/     # all sounds → tmp/*.flac
 ```
 
-`sounds/` is generated output — do not commit unless explicitly requested.
+`tmp/` is generated output — do not commit unless explicitly requested.
 
 ## Library
 

@@ -81,12 +81,20 @@ go install github.com/jgabor/tuta@latest
 
 ```sh
 mage test
-mage build -debug=true
-./build/tuta export -o sounds/
-./build/tuta debug sounds all sounds/
+mage debug             # exports tmp/ if needed, then runs every debug check
 ```
 
-Or install a debug binary to PATH: `mage install`, then `tuta export …` and `tuta debug sounds all sounds/`.
+`mage debug` runs via `go run` with the `debug` build tag, so no separate build or install step is required. It auto-exports `tmp/` if no FLAC files are present.
+
+For granular control, build a debug binary and call the CLI directly:
+
+```sh
+mage build -debug=true
+./build/tuta export -o tmp/
+./build/tuta debug sounds all tmp/
+```
+
+Or install a debug binary to PATH: `mage install`, then `tuta export …` and `tuta debug sounds all tmp/`.
 
 If `tuta debug` plays `success` instead of running checks, you have a release binary — rebuild with `-debug=true` or run `mage install`.
 
@@ -139,12 +147,59 @@ Defaults to `success` if no argument is given or the argument is unrecognized.
 Export synthesized sounds as FLAC files for offline analysis (spectrum, fingerprinting, etc.):
 
 ```sh
-./build/tuta export -o sounds/              # all sounds → sounds/*.flac
-./build/tuta export -o sounds/ success error
-./build/tuta export -stereo -depth 24 -o sounds/ success
+./build/tuta export -o tmp/              # all sounds → tmp/*.flac
+./build/tuta export -o tmp/ success error
+./build/tuta export -stereo -depth 24 -o tmp/ success
 ```
 
-Output defaults to mono 16-bit FLAC at 44.1 kHz. The files contain the same synthesized audio that `tuta <sound>` would play (without speaker capture). `sounds/` is gitignored.
+Output defaults to mono 16-bit FLAC at 44.1 kHz. The files contain the same synthesized audio that `tuta <sound>` would play (without speaker capture). `tmp/` is gitignored.
+
+### Debug sounds
+
+Run consistency checks across a directory of FLAC exports. Requires a debug build (`mage build -debug=true` or `mage install`); release builds silently play `success` instead.
+
+```sh
+./build/tuta debug sounds all tmp/      # run every check
+./build/tuta debug sounds volume tmp/   # individual checks: volume, duration, pitch, spectrum, distinct
+```
+
+The `all` run reports five sections:
+
+**`volume`** — is anything oddly quiet or loud compared to the rest of the set?
+
+| Column    | Meaning                                                              |
+| --------- | -------------------------------------------------------------------- |
+| `peak`    | Loudest single sample (dBFS). Closer to 0 = louder, more clip risk.  |
+| `rms`     | Average loudness across the file (dBFS) — what your ear perceives.   |
+| `crest`   | `peak − rms`. Small = steady tone, large = punchy/spiky.            |
+| `Δ rms`   | Drift from the set's median. Sounds within the threshold feel balanced. |
+
+**`duration`** — are sounds within their target length window?
+
+- `duration`: actual length.
+- `min` / `max`: acceptable range. Below `min` feels clipped; above `max` feels sluggish for a UI alert.
+
+**`pitch`** — does each sound play the right notes?
+
+- `detected notes`: how many distinct notes the analyzer heard.
+- `note N Hz (want X Hz)`: detected frequency vs. target. "ok" means within tolerance — detection rounds to the nearest bin, so values are never exact.
+- `contour`: sequence shape (ascending, descending, arpeggio, sweep). `timeout` is a continuous descending sweep, so it's checked at time points (10/30/50/70%/end) rather than as discrete notes.
+
+**`spectrum`** — what *shape* of sound is it?
+
+| Column     | Meaning                                                                         |
+| ---------- | ------------------------------------------------------------------------------- |
+| `f0`       | Fundamental frequency (the lowest, strongest pitch).                            |
+| `fund%`    | Energy in the fundamental vs. harmonics. High = pure, low = rich/buzzy.          |
+| `H3/H1`    | 3rd harmonic vs. fundamental. Triangle waves have a small 3rd; pure sines have none. |
+| `centroid` | "Brightness" — average frequency weighted by energy. Higher = tinnier.          |
+| `class`    | Inferred waveform (sine / triangle / square). Each sound is *supposed* to be a particular class. |
+
+**`distinct`** — are any two sounds too similar to tell apart?
+
+Computes a perceptual distance (mix of pitch, spectrum, and timing features) between every pair. The `Closest pair` line shows the tightest match; the run passes if it stays above the minimum-distance threshold (0.12). Pairs that drop below the floor are hard for users to tell apart.
+
+A run ends with `PASS: all checks passed.` when every section is green.
 
 ## Sounds
 
