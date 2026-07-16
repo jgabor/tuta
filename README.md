@@ -39,7 +39,8 @@ Lifecycle (optional, separate handlers, no 5s gate):
   compact → complete | ask → notify | confirm → confirm | milestone → progress
   increase, decrease, info → invoke tuta manually only
 
-Fallbacks: unknown status → notify; bad sound name → success; tuta error → retry success (handler still exit 0)
+Fallbacks: unknown status → notify; bad sound name → success (warns on stderr); tuta error → retry success (handler still exit 0)
+Exit codes: 0 ok, 1 playback/export failure (retry success once), 2 usage error (bad sound name is NOT 2 — it falls back)
 Invoke: tuta <sound> (installed) or ./build/tuta <sound> (in-repo)  |  Go: alert.Play("<sound>")
 Sounds: success, error, warning, info, complete, increase, decrease, notify, progress, confirm, cancel, ready, timeout
 ```
@@ -96,7 +97,7 @@ mage build -debug=true
 
 Or install a debug binary to PATH: `mage install`, then `tuta export …` and `tuta debug sounds all tmp/`.
 
-If `tuta debug` plays `success` instead of running checks, you have a release binary — rebuild with `-debug=true` or run `mage install`.
+If `tuta debug` reports it requires a debug build instead of running checks, you have a release binary — rebuild with `-debug=true` or run `mage install`.
 
 ## Library
 
@@ -140,7 +141,7 @@ tuta --version
 
 Available sounds: `success`, `error`, `warning`, `info`, `complete`, `increase`, `decrease`, `notify`, `progress`, `confirm`, `cancel`, `ready`, `timeout`
 
-Defaults to `success` if no argument is given or the argument is unrecognized.
+With no argument, `tuta` plays `success` (the default). An unrecognized sound name is not silent: `tuta` warns on stderr and still plays `success` as a best-effort fallback (exit 0), so agent hooks keep their feedback cue. An unrecognized option (e.g. `-foo`) is a usage error: stderr message plus usage and exit 2.
 
 ### Export FLAC
 
@@ -156,7 +157,7 @@ Output defaults to mono 16-bit FLAC at 44.1 kHz. The files contain the same synt
 
 ### Debug sounds
 
-Run consistency checks across a directory of FLAC exports. Requires a debug build (`mage build -debug=true` or `mage install`); release builds silently play `success` instead.
+Run consistency checks across a directory of FLAC exports. Requires a debug build (`mage build -debug=true` or `mage install`); a release build instead prints an error explaining the debug-build requirement and exits 2 (it does not play `success`).
 
 ```sh
 ./build/tuta debug sounds all tmp/      # run every check
@@ -200,6 +201,28 @@ The `all` run reports five sections:
 Computes a perceptual distance (mix of pitch, spectrum, and timing features) between every pair. The `Closest pair` line shows the tightest match; the run passes if it stays above the minimum-distance threshold (0.12). Pairs that drop below the floor are hard for users to tell apart.
 
 A run ends with `PASS: all checks passed.` when every section is green.
+
+## Exit codes
+
+`tuta` uses a small, stable exit code scheme so callers (shells, CI, agent hooks) can react consistently:
+
+| Code | Meaning                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------------ |
+| 0    | Success: a sound played, help/version was shown, or export/checks completed.                    |
+| 1    | Runtime failure: audio playback or FLAC export could not complete. Retry with `success` if the host needs a cue. |
+| 2    | Usage error: unknown option/command, bad flag, missing value, or `tuta debug` from a release build (which lacks `debug`). |
+
+### Best-effort playback
+
+`tuta` is designed as a fire-and-forget cue for scripts, build pipelines, and agent hosts: it should never silently swallow intent or block the host.
+
+- **Missing binary**: the host's hook aborts with exit 0 — never block on tuta.
+- **No argument**: plays `success` (the default), exit 0.
+- **Unknown sound** (e.g. a typo): warns on stderr naming the requested sound, then plays `success` as a fallback so the host still gets a feedback cue, exit 0.
+- **Trailing arguments or options** (e.g. `tuta success extra`, `tuta success --bogus`): the play path takes exactly one sound — extras are a usage error, message + usage to stderr, exit 2. `--help`/`--version` likewise take no arguments.
+- **Unknown option** (e.g. `-foo`): treated as a usage error, not a sound — message + usage to stderr, exit 2.
+- **Playback failure**: prints the requested sound name and error to stderr, exit 1. Hosts that need a cue may retry once with `success`.
+- **`tuta debug` in a release build**: explains that a debug build is required and how to get one, exit 2 (so CI never mistakes a release build for passing checks).
 
 ## Sounds
 

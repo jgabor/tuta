@@ -10,11 +10,10 @@ import (
 )
 
 func init() {
-	tryDebugCLI = func(args []string) (int, bool) {
-		if len(args) == 0 || args[0] != "debug" {
-			return 0, false
-		}
-		return runDebug(args[1:]), true
+	// run() dispatches here only after confirming args[0] == "debug" and has
+	// already stripped it, so args is the subcommand and its options.
+	debugCLI = func(args []string) int {
+		return runDebug(args)
 	}
 	debugUsage = debugUsageSection
 }

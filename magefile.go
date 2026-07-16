@@ -57,8 +57,15 @@ func compile(local, debug bool) error {
 		if err := os.MkdirAll(buildDir, 0o755); err != nil {
 			return err
 		}
+		// Use the target GOOS (GOOS env) for the binary name so cross-compiling
+		// to Windows from any host correctly appends .exe; fall back to the
+		// host runtime when GOOS is unset (normal local builds).
+		targetGOOS := os.Getenv("GOOS")
+		if targetGOOS == "" {
+			targetGOOS = runtime.GOOS
+		}
 		bin := filepath.Join(buildDir, "tuta")
-		if runtime.GOOS == "windows" {
+		if targetGOOS == "windows" {
 			bin += ".exe"
 		}
 		_ = os.Remove(bin)
@@ -92,6 +99,32 @@ func Test() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// Verify runs the full pre-release quality gate: tests (race), golangci-lint,
+// go vet, and govulncheck — all with the debug build tag so debug-tagged code
+// (soundcheck, debug CLI) is covered. The GitHub release workflow gates
+// publishing on this. It mirrors the lefthook pre-push gate but never mutates
+// (no --fix). golangci-lint reads build-tags from .golangci.yml.
+func Verify() error {
+	steps := []struct {
+		name string
+		cmd  *exec.Cmd
+	}{
+		{"test", exec.Command("go", "test", "-tags", "debug", "./...", "-race")},
+		{"lint", exec.Command("golangci-lint", "run", "./...")},
+		{"vet", exec.Command("go", "vet", "-tags", "debug", "./...")},
+		{"vuln", exec.Command("govulncheck", "-tags", "debug", "./...")},
+	}
+	for _, s := range steps {
+		fmt.Printf("=== verify: %s ===\n", s.name)
+		s.cmd.Stdout = os.Stdout
+		s.cmd.Stderr = os.Stderr
+		if err := s.cmd.Run(); err != nil {
+			return fmt.Errorf("verify %s: %w", s.name, err)
+		}
+	}
+	return nil
 }
 
 // Debug runs `tuta debug sounds all tmp/` via go run with the debug build

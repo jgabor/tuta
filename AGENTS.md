@@ -10,7 +10,10 @@
 | Build (debug) | `mage build -debug=true` or `DEBUG=1 mage build` | `./build/tuta` | debug |
 | Install from source | `mage install` | `$GOBIN/tuta` | debug (always) |
 | Test | `mage test` | — | — |
+| Verify (gate) | `mage verify` | — | test+lint+vet+vuln |
 | Clean | `mage clean` | removes `./build/` | — |
+
+`mage verify` runs tests (race), golangci-lint, go vet, and govulncheck — the same gate the release workflow requires before publishing. All four steps cover debug-tagged code (`-tags debug`; golangci-lint reads `build-tags` from `.golangci.yml`). Cross-compile a specific target with `GOOS=<os> GOARCH=<arch> mage build` (the `.exe` suffix follows the target `GOOS`).
 
 Consumer install (`go install github.com/jgabor/tuta@latest`) is **release** — no `tuta debug`.
 
@@ -40,7 +43,11 @@ mage build -debug=true                # or: mage install && tuta ...
 ./build/tuta debug sounds all tmp/
 ```
 
-Release builds (`mage build` without `-debug`) do not include `tuta debug`; on release, `tuta debug` silently plays `success`.
+Release builds (`mage build` without `-debug`) do not include `tuta debug`; invoking `tuta debug` on a release build prints an error explaining the debug-build requirement and exits 2 (it does not silently play `success`).
+
+## Exit codes
+
+CLI exit codes: `0` success; `1` runtime failure (playback/export); `2` usage error (unknown option/command, bad flag) or `tuta debug` from a release build. An **unknown sound name** is not exit 2 — `tuta` warns to stderr and plays `success` as a best-effort fallback (exit 0). See README → Exit codes.
 
 ## Export and analysis
 

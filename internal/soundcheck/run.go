@@ -259,7 +259,7 @@ func loadTrack(path string) (track, error) {
 	if err != nil {
 		return track{}, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	dec, err := pcm.NewDecoder(f)
 	if err != nil {
