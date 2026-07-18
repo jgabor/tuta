@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jgabor/tuta/alert"
@@ -34,7 +35,7 @@ func main() {
 	os.Exit((&runner{
 		stdout: os.Stdout,
 		stderr: os.Stderr,
-		play:   alert.Play,
+		play:   alert.PlayAtVolume,
 		debug:  debugCLI,
 	}).run(os.Args[1:]))
 }
@@ -45,14 +46,18 @@ func main() {
 type runner struct {
 	stdout io.Writer
 	stderr io.Writer
-	play   func(name string) error
+	play   func(name string, volume int) error
 	debug  func(args []string) int // nil in release builds
 }
 
 // run dispatches args and returns a process exit code (see Exit codes).
 func (r *runner) run(args []string) int {
+	args, volume, volumeSet, code := r.parseGlobalVolume(args)
+	if code != exitOK {
+		return code
+	}
 	if len(args) == 0 {
-		return r.playSound("success")
+		return r.playSound("success", volume)
 	}
 
 	switch args[0] {
@@ -69,12 +74,21 @@ func (r *runner) run(args []string) int {
 		r.writeUsage(r.stdout)
 		return exitOK
 	case "list":
+		if volumeSet {
+			return r.volumeCommandError("list")
+		}
 		return r.runList(args[1:])
 	case "preview":
-		return r.runPreview(args[1:])
+		return r.runPreview(args[1:], volume)
 	case "export":
+		if volumeSet {
+			return r.volumeCommandError("export")
+		}
 		return r.runExport(args[1:])
 	case "debug":
+		if volumeSet {
+			return r.volumeCommandError("debug")
+		}
 		if r.debug == nil {
 			_, _ = fmt.Fprint(r.stderr, debugUnavailableMessage())
 			return exitUsage
@@ -94,7 +108,36 @@ func (r *runner) run(args []string) int {
 		return r.usageError("unexpected argument %q; usage: tuta [sound]", args[1])
 	}
 
-	return r.playSound(args[0])
+	return r.playSound(args[0], volume)
+}
+
+func (r *runner) parseGlobalVolume(args []string) ([]string, int, bool, int) {
+	const defaultVolume = 100
+	if len(args) == 0 || (args[0] != "--volume" && !strings.HasPrefix(args[0], "--volume=")) {
+		return args, defaultVolume, false, exitOK
+	}
+
+	var value string
+	if args[0] == "--volume" {
+		if len(args) < 2 {
+			return nil, 0, false, r.usageError("--volume requires a percentage from 0 to 100")
+		}
+		value = args[1]
+		args = args[2:]
+	} else {
+		value = strings.TrimPrefix(args[0], "--volume=")
+		args = args[1:]
+	}
+
+	volume, err := strconv.Atoi(value)
+	if err != nil || volume < 0 || volume > 100 {
+		return nil, 0, false, r.usageError("invalid volume %q; must be an integer percentage from 0 to 100", value)
+	}
+	return args, volume, true, exitOK
+}
+
+func (r *runner) volumeCommandError(command string) int {
+	return r.usageError("--volume applies only to sound playback and preview, not %s", command)
 }
 
 // usageError prints a tuta-prefixed message and usage to stderr. Used for all
@@ -109,13 +152,13 @@ func (r *runner) usageError(format string, args ...any) int {
 // sound and falling back to "success" so agent hosts still get a feedback cue
 // (best-effort playback — see README). Playback errors print the requested
 // sound name to stderr.
-func (r *runner) playSound(name string) int {
+func (r *runner) playSound(name string, volume int) int {
 	sound := name
 	if !isKnownSound(name) {
 		_, _ = fmt.Fprintf(r.stderr, "tuta: unknown sound %q; playing \"success\" as fallback\n", name)
 		sound = "success"
 	}
-	if err := r.play(sound); err != nil {
+	if err := r.play(sound, volume); err != nil {
 		_, _ = fmt.Fprintf(r.stderr, "tuta: error playing %q: %v\n", name, err)
 		return exitFail
 	}
@@ -151,7 +194,7 @@ func (r *runner) runList(args []string) int {
 	return exitOK
 }
 
-func (r *runner) runPreview(args []string) int {
+func (r *runner) runPreview(args []string, volume int) int {
 	names := args
 	if len(names) == 0 {
 		names = alert.Names()
@@ -170,7 +213,7 @@ func (r *runner) runPreview(args []string) int {
 
 	for _, name := range names {
 		_, _ = fmt.Fprintln(r.stdout, name)
-		if err := r.play(name); err != nil {
+		if err := r.play(name, volume); err != nil {
 			_, _ = fmt.Fprintf(r.stderr, "tuta: error previewing %q: %v\n", name, err)
 			return exitFail
 		}
@@ -256,16 +299,17 @@ const usageTemplate = `tuta %s — Tiny Utility for Tone Alerts
 Author: Jonathan Gabor
 
 Usage:
-  tuta [sound]
+  tuta [--volume PERCENT] [sound]
   tuta list [--json]
-  tuta preview [sound ...]
+  tuta [--volume PERCENT] preview [sound ...]
   tuta export [-o DIR] [-mono|-stereo] [-depth 16|24] [sound ...]%s
 
 Available sounds:
 %s
 Options:
-  -h, --help      show this help
-  -v, --version   show version
+  -h, --help        show this help
+  -v, --version     show version
+  --volume PERCENT  playback volume from 0 to 100 (default: 100)
 
 Export options:
   -o DIR          output directory (default: ./tmp)

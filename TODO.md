@@ -12,7 +12,7 @@
 - [x] Add `tuta list`, including machine-readable `--json` output.
 - [x] Centralize sound metadata and generate help text from that source of truth.
 - [x] Add `tuta preview` for discovering sounds individually or in sequence.
-- [ ] Add global playback volume control without exposing low-level synthesis parameters.
+- [x] Add global playback volume control without exposing low-level synthesis parameters.
 - [ ] Add tested, copy-paste integration recipes for shells, build tools, CI, and coding agents.
 
 ## v0.7.0

@@ -3,6 +3,7 @@ package alert
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"github.com/hajimehoshi/oto/v2"
@@ -34,13 +35,26 @@ func Render(name string) []float32 {
 	return mono
 }
 
-// Play plays a named notification sound. Unknown names fall back to "success"
-// (same behavior as the CLI). Returns an error if audio init or playback fails.
+// Play plays a named notification sound at full volume. Unknown names fall
+// back to "success" (same behavior as the CLI). Returns an error if audio init
+// or playback fails.
 func Play(name string) error {
-	mono := Render(name)
+	return PlayAtVolume(name, 100)
+}
 
+// PlayAtVolume plays a named notification sound at an integer percentage from
+// 0 (silent) to 100 (full volume). It preserves each sound's relative dynamics
+// rather than exposing its low-level synthesis parameters.
+func PlayAtVolume(name string, percent int) error {
+	if percent < 0 || percent > 100 {
+		return fmt.Errorf("volume must be from 0 to 100, got %d", percent)
+	}
+
+	mono := Render(name)
+	gain := float32(percent) / 100
 	buf := &bytes.Buffer{}
 	for _, s := range mono {
+		s *= gain
 		_ = binary.Write(buf, binary.LittleEndian, s)
 		_ = binary.Write(buf, binary.LittleEndian, s)
 	}

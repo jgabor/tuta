@@ -28,7 +28,12 @@ func (f *fakePlay) play(name string) error {
 func newRunner(play func(string) error, debug func([]string) int) (*runner, *bytes.Buffer, *bytes.Buffer) {
 	out := &bytes.Buffer{}
 	errs := &bytes.Buffer{}
-	r := &runner{stdout: out, stderr: errs, play: play, debug: debug}
+	r := &runner{
+		stdout: out,
+		stderr: errs,
+		play:   func(name string, _ int) error { return play(name) },
+		debug:  debug,
+	}
 	return r, out, errs
 }
 
@@ -227,6 +232,111 @@ func TestHelpUsesSoundMetadata(t *testing.T) {
 		if !strings.Contains(out.String(), sound.Name) || !strings.Contains(out.String(), sound.Description) {
 			t.Fatalf("help missing generated metadata for %q:\n%s", sound.Name, out.String())
 		}
+	}
+}
+
+func TestRunGlobalVolume(t *testing.T) {
+	for _, args := range [][]string{{"--volume", "35", "warning"}, {"--volume=35", "warning"}} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			var gotName string
+			var gotVolume int
+			r := &runner{
+				stdout: io.Discard,
+				stderr: io.Discard,
+				play: func(name string, volume int) error {
+					gotName, gotVolume = name, volume
+					return nil
+				},
+			}
+			if code := r.run(args); code != exitOK {
+				t.Fatalf("run(%v): exit %d, want %d", args, code, exitOK)
+			}
+			if gotName != "warning" || gotVolume != 35 {
+				t.Fatalf("play(%q, %d), want play(%q, %d)", gotName, gotVolume, "warning", 35)
+			}
+		})
+	}
+}
+
+func TestRunGlobalVolumeAppliesToDefaultFallbackAndPreview(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantNames []string
+	}{
+		{"default", []string{"--volume", "0"}, []string{"success"}},
+		{"unknown fallback", []string{"--volume", "20", "notasound"}, []string{"success"}},
+		{"preview", []string{"--volume", "75", "preview", "info", "ready"}, []string{"info", "ready"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var names []string
+			var volumes []int
+			r := &runner{
+				stdout: io.Discard,
+				stderr: io.Discard,
+				play: func(name string, volume int) error {
+					names = append(names, name)
+					volumes = append(volumes, volume)
+					return nil
+				},
+			}
+			if code := r.run(tc.args); code != exitOK {
+				t.Fatalf("run(%v): exit %d, want %d", tc.args, code, exitOK)
+			}
+			if strings.Join(names, "\n") != strings.Join(tc.wantNames, "\n") {
+				t.Fatalf("played %v, want %v", names, tc.wantNames)
+			}
+			for _, volume := range volumes {
+				want := map[string]int{"default": 0, "unknown fallback": 20, "preview": 75}[tc.name]
+				if volume != want {
+					t.Fatalf("volume = %d, want %d", volume, want)
+				}
+			}
+		})
+	}
+}
+
+func TestRunGlobalVolumeValidation(t *testing.T) {
+	tests := [][]string{
+		{"--volume"},
+		{"--volume", "loud", "success"},
+		{"--volume", "-1", "success"},
+		{"--volume=101", "success"},
+		{"--volume=1.5", "success"},
+	}
+	for _, args := range tests {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			fp := &fakePlay{}
+			r, _, stderr := newRunner(fp.play, nil)
+			if code := r.run(args); code != exitUsage {
+				t.Fatalf("run(%v): exit %d, want %d", args, code, exitUsage)
+			}
+			if fp.last != "" {
+				t.Fatalf("invalid volume triggered playback with %q", fp.last)
+			}
+			if !strings.Contains(stderr.String(), "volume") || !strings.Contains(stderr.String(), "0 to 100") {
+				t.Fatalf("stderr missing volume range guidance: %q", stderr.String())
+			}
+		})
+	}
+}
+
+func TestRunGlobalVolumeRejectsNonPlaybackCommands(t *testing.T) {
+	for _, command := range []string{"list", "export", "debug"} {
+		t.Run(command, func(t *testing.T) {
+			fp := &fakePlay{}
+			r, _, stderr := newRunner(fp.play, nil)
+			if code := r.run([]string{"--volume", "50", command}); code != exitUsage {
+				t.Fatalf("volume with %s: exit %d, want %d", command, code, exitUsage)
+			}
+			if fp.last != "" {
+				t.Fatalf("volume with %s triggered playback with %q", command, fp.last)
+			}
+			if !strings.Contains(stderr.String(), "applies only to sound playback and preview") {
+				t.Fatalf("stderr missing command scope guidance: %q", stderr.String())
+			}
+		})
 	}
 }
 

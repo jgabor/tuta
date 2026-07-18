@@ -41,7 +41,7 @@ Lifecycle (optional, separate handlers, no 5s gate):
 
 Fallbacks: unknown status → notify; bad sound name → success (warns on stderr); tuta error → retry success (handler still exit 0)
 Exit codes: 0 ok, 1 playback/export failure (retry success once), 2 usage error (bad sound name is NOT 2 — it falls back)
-Invoke: tuta <sound> (installed) or ./build/tuta <sound> (in-repo)  |  Go: alert.Play("<sound>")
+Invoke: tuta <sound> (installed) or ./build/tuta <sound> (in-repo)  |  Optional volume: tuta --volume 50 <sound>  |  Go: alert.Play("<sound>")
 Sounds: success, error, warning, info, complete, increase, decrease, notify, progress, confirm, cancel, ready, timeout
 ```
 
@@ -109,6 +109,11 @@ import "github.com/jgabor/tuta/alert"
 if err := alert.Play("error"); err != nil {
     // handle audio failure
 }
+
+// Integer percentage; preserves the sound's designed relative dynamics.
+if err := alert.PlayAtVolume("warning", 50); err != nil {
+    // handle audio failure
+}
 ```
 
 List built-in sound names with `alert.Names()`. Use `alert.Sounds()` for the stable catalog of names, descriptions, and waveforms.
@@ -132,9 +137,9 @@ While this module is on v0.x, the exported API may evolve in minor releases. A f
 In-repo dev: prefix with `./build/tuta`. After `mage install` or `go install`, use `tuta` from PATH.
 
 ```sh
-tuta [sound]
+tuta [--volume PERCENT] [sound]
 tuta list [--json]
-tuta preview [sound ...]
+tuta [--volume PERCENT] preview [sound ...]
 tuta export [-o DIR] [-mono|-stereo] [-depth 16|24] [sound ...]
 tuta debug sounds <cmd> [dir]   # debug builds only (mage build -debug=true or mage install)
 tuta --help
@@ -144,6 +149,17 @@ tuta --version
 Available sounds: `success`, `error`, `warning`, `info`, `complete`, `increase`, `decrease`, `notify`, `progress`, `confirm`, `cancel`, `ready`, `timeout`
 
 With no argument, `tuta` plays `success` (the default). An unrecognized sound name is not silent: `tuta` warns on stderr and still plays `success` as a best-effort fallback (exit 0), so agent hooks keep their feedback cue. An unrecognized option (e.g. `-foo`) is a usage error: stderr message plus usage and exit 2.
+
+### Playback volume
+
+Use the global `--volume` option before a sound or `preview`. It accepts an integer percentage from 0 through 100 and scales the finished sound, preserving its designed note balance and dynamics:
+
+```sh
+tuta --volume 50 success
+tuta --volume=25 preview warning error
+```
+
+The default is 100. The option applies only to playback, not `list`, `export`, or `debug`; using it with those commands is a usage error.
 
 ### List sounds
 
@@ -164,6 +180,7 @@ Preview every sound in name order, one sound, or a selected sequence:
 tuta preview
 tuta preview warning
 tuta preview success warning error
+tuta --volume 50 preview success warning error
 ```
 
 Each sound name is printed immediately before playback. The full sequence is validated first, so an unknown name or option exits 2 without playing a partial preview. Playback stops at the first audio error and exits 1.
