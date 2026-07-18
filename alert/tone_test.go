@@ -3,7 +3,7 @@ package alert
 import "testing"
 
 func TestGenerateTone(t *testing.T) {
-	wave := generateTone(tone{440.0, 0.1, "sine", 0.2})
+	wave := generateTone(tone{440.0, 0.1, 0.2}, "sine")
 	want := int(sampleRate * 0.1)
 	if len(wave) != want {
 		t.Fatalf("generateTone len = %d, want %d", len(wave), want)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -67,6 +68,10 @@ func (r *runner) run(args []string) int {
 		}
 		r.writeUsage(r.stdout)
 		return exitOK
+	case "list":
+		return r.runList(args[1:])
+	case "preview":
+		return r.runPreview(args[1:])
 	case "export":
 		return r.runExport(args[1:])
 	case "debug":
@@ -113,6 +118,62 @@ func (r *runner) playSound(name string) int {
 	if err := r.play(sound); err != nil {
 		_, _ = fmt.Fprintf(r.stderr, "tuta: error playing %q: %v\n", name, err)
 		return exitFail
+	}
+	return exitOK
+}
+
+func (r *runner) runList(args []string) int {
+	jsonOutput := len(args) > 0 && args[0] == "--json"
+	if jsonOutput {
+		args = args[1:]
+	}
+	if len(args) > 0 {
+		if strings.HasPrefix(args[0], "-") {
+			return r.usageError("unknown list option %q", args[0])
+		}
+		return r.usageError("unexpected argument %q; usage: tuta list [--json]", args[0])
+	}
+
+	catalog := alert.Sounds()
+	if jsonOutput {
+		encoder := json.NewEncoder(r.stdout)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(catalog); err != nil {
+			_, _ = fmt.Fprintf(r.stderr, "tuta: writing sound list: %v\n", err)
+			return exitFail
+		}
+		return exitOK
+	}
+
+	for _, sound := range catalog {
+		_, _ = fmt.Fprintf(r.stdout, "%-10s %s\n", sound.Name, sound.Description)
+	}
+	return exitOK
+}
+
+func (r *runner) runPreview(args []string) int {
+	names := args
+	if len(names) == 0 {
+		names = alert.Names()
+	}
+
+	// Validate the complete sequence before playing anything so a typo cannot
+	// leave the user with a partially played preview.
+	for _, name := range names {
+		if strings.HasPrefix(name, "-") {
+			return r.usageError("unknown preview option %q", name)
+		}
+		if !isKnownSound(name) {
+			return r.usageError("unknown sound %q; usage: tuta preview [sound ...]", name)
+		}
+	}
+
+	for _, name := range names {
+		_, _ = fmt.Fprintln(r.stdout, name)
+		if err := r.play(name); err != nil {
+			_, _ = fmt.Fprintf(r.stderr, "tuta: error previewing %q: %v\n", name, err)
+			return exitFail
+		}
 	}
 	return exitOK
 }
@@ -180,7 +241,15 @@ func (r *runner) writeUsage(w io.Writer) {
 	if debugUsage != nil {
 		extra = debugUsage()
 	}
-	_, _ = fmt.Fprintf(w, usageTemplate, version, extra)
+	_, _ = fmt.Fprintf(w, usageTemplate, version, extra, soundUsage())
+}
+
+func soundUsage() string {
+	var usage strings.Builder
+	for _, sound := range alert.Sounds() {
+		_, _ = fmt.Fprintf(&usage, "  %-9s %s\n", sound.Name, sound.Description)
+	}
+	return usage.String()
 }
 
 const usageTemplate = `tuta %s — Tiny Utility for Tone Alerts
@@ -188,23 +257,12 @@ Author: Jonathan Gabor
 
 Usage:
   tuta [sound]
+  tuta list [--json]
+  tuta preview [sound ...]
   tuta export [-o DIR] [-mono|-stereo] [-depth 16|24] [sound ...]%s
 
 Available sounds:
-  success   ascending C major arpeggio (default)
-  error     descending tritone buzz (D3-Ab2)
-  warning   three pings with major second tension
-  info      short neutral blip
-  complete  ascending F major triad (F4-A4-C5)
-  increase  ascending major triad (C4-E4-G4)
-  decrease  descending minor triad, fading (G4-Eb4-C4)
-  notify    ascending minor third ping (A5-C6)
-  progress  ascending major triad (E4-G4-B4)
-  confirm   ascending perfect fifth (C5-G5)
-  cancel    single tone (B4)
-  ready     ascending major third (C5-E5, triangle)
-  timeout   descending frequency sweep (E4-Bb3)
-
+%s
 Options:
   -h, --help      show this help
   -v, --version   show version

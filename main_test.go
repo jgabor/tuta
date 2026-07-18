@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -64,6 +65,168 @@ func TestRunHelpLongShort(t *testing.T) {
 				t.Fatalf("play was invoked with %q; expected no playback", fp.last)
 			}
 		})
+	}
+}
+
+func TestRunList(t *testing.T) {
+	fp := &fakePlay{}
+	r, out, stderr := newRunner(fp.play, nil)
+	if code := r.run([]string{"list"}); code != exitOK {
+		t.Fatalf("run(list): exit %d, want %d", code, exitOK)
+	}
+	for _, sound := range alert.Sounds() {
+		if !strings.Contains(out.String(), sound.Name) || !strings.Contains(out.String(), sound.Description) {
+			t.Fatalf("list output missing metadata for %q:\n%s", sound.Name, out.String())
+		}
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("list wrote to stderr: %q", stderr.String())
+	}
+	if fp.last != "" {
+		t.Fatalf("list triggered playback with %q", fp.last)
+	}
+}
+
+func TestRunListJSON(t *testing.T) {
+	fp := &fakePlay{}
+	r, out, stderr := newRunner(fp.play, nil)
+	if code := r.run([]string{"list", "--json"}); code != exitOK {
+		t.Fatalf("run(list --json): exit %d, want %d", code, exitOK)
+	}
+	var got []alert.Sound
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("list --json returned invalid JSON: %v\n%s", err, out.String())
+	}
+	want := alert.Sounds()
+	if len(got) != len(want) {
+		t.Fatalf("JSON sound count = %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("JSON sound %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("list --json wrote to stderr: %q", stderr.String())
+	}
+	if fp.last != "" {
+		t.Fatalf("list --json triggered playback with %q", fp.last)
+	}
+}
+
+func TestRunListRejectsArguments(t *testing.T) {
+	for _, args := range [][]string{{"list", "extra"}, {"list", "--bogus"}, {"list", "--json", "extra"}} {
+		fp := &fakePlay{}
+		r, _, stderr := newRunner(fp.play, nil)
+		if code := r.run(args); code != exitUsage {
+			t.Fatalf("run(%v): exit %d, want %d", args, code, exitUsage)
+		}
+		if stderr.Len() == 0 {
+			t.Fatalf("run(%v) did not explain usage error", args)
+		}
+		if fp.last != "" {
+			t.Fatalf("run(%v) triggered playback with %q", args, fp.last)
+		}
+	}
+}
+
+func TestRunPreviewAll(t *testing.T) {
+	var played []string
+	r, out, stderr := newRunner(func(name string) error {
+		played = append(played, name)
+		return nil
+	}, nil)
+	if code := r.run([]string{"preview"}); code != exitOK {
+		t.Fatalf("run(preview): exit %d, want %d", code, exitOK)
+	}
+	want := alert.Names()
+	if strings.Join(played, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("preview played %v, want %v", played, want)
+	}
+	if got := strings.Fields(out.String()); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("preview output names = %v, want %v", got, want)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("preview wrote to stderr: %q", stderr.String())
+	}
+}
+
+func TestRunPreviewSequence(t *testing.T) {
+	var played []string
+	r, out, _ := newRunner(func(name string) error {
+		played = append(played, name)
+		return nil
+	}, nil)
+	want := []string{"success", "warning", "ready"}
+	if code := r.run(append([]string{"preview"}, want...)); code != exitOK {
+		t.Fatalf("run(preview sequence): exit %d, want %d", code, exitOK)
+	}
+	if strings.Join(played, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("preview played %v, want %v", played, want)
+	}
+	if got := strings.Fields(out.String()); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("preview output names = %v, want %v", got, want)
+	}
+}
+
+func TestRunPreviewValidatesSequenceBeforePlayback(t *testing.T) {
+	fp := &fakePlay{}
+	r, out, stderr := newRunner(fp.play, nil)
+	if code := r.run([]string{"preview", "success", "notasound"}); code != exitUsage {
+		t.Fatalf("preview unknown sound: exit %d, want %d", code, exitUsage)
+	}
+	if fp.last != "" || out.Len() != 0 {
+		t.Fatalf("invalid preview partially ran: played %q, output %q", fp.last, out.String())
+	}
+	if got := stderr.String(); !strings.Contains(got, `unknown sound "notasound"`) {
+		t.Fatalf("stderr missing unknown-sound message: %q", got)
+	}
+}
+
+func TestRunPreviewRejectsOption(t *testing.T) {
+	fp := &fakePlay{}
+	r, _, stderr := newRunner(fp.play, nil)
+	if code := r.run([]string{"preview", "--bogus"}); code != exitUsage {
+		t.Fatalf("preview unknown option: exit %d, want %d", code, exitUsage)
+	}
+	if fp.last != "" {
+		t.Fatalf("preview option triggered playback with %q", fp.last)
+	}
+	if got := stderr.String(); !strings.Contains(got, `unknown preview option "--bogus"`) {
+		t.Fatalf("stderr missing unknown-option message: %q", got)
+	}
+}
+
+func TestRunPreviewPlaybackError(t *testing.T) {
+	played := 0
+	r, out, stderr := newRunner(func(string) error {
+		played++
+		return os.ErrNotExist
+	}, nil)
+	if code := r.run([]string{"preview", "error", "success"}); code != exitFail {
+		t.Fatalf("preview playback error: exit %d, want %d", code, exitFail)
+	}
+	if played != 1 {
+		t.Fatalf("preview continued after playback error: calls = %d, want 1", played)
+	}
+	if got := out.String(); got != "error\n" {
+		t.Fatalf("preview output = %q, want %q", got, "error\\n")
+	}
+	if got := stderr.String(); !strings.Contains(got, `previewing "error"`) {
+		t.Fatalf("stderr must name failed preview sound: %q", got)
+	}
+}
+
+func TestHelpUsesSoundMetadata(t *testing.T) {
+	fp := &fakePlay{}
+	r, out, _ := newRunner(fp.play, nil)
+	if code := r.run([]string{"--help"}); code != exitOK {
+		t.Fatalf("run(--help): exit %d, want %d", code, exitOK)
+	}
+	for _, sound := range alert.Sounds() {
+		if !strings.Contains(out.String(), sound.Name) || !strings.Contains(out.String(), sound.Description) {
+			t.Fatalf("help missing generated metadata for %q:\n%s", sound.Name, out.String())
+		}
 	}
 }
 

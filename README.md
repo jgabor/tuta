@@ -111,7 +111,7 @@ if err := alert.Play("error"); err != nil {
 }
 ```
 
-List built-in sound names with `alert.Names()`.
+List built-in sound names with `alert.Names()`. Use `alert.Sounds()` for the stable catalog of names, descriptions, and waveforms.
 
 Render synthesized mono PCM at 44.1 kHz with `alert.Render(name)` or export lossless FLAC with [go-flac](https://github.com/tphakala/go-flac):
 
@@ -133,6 +133,8 @@ In-repo dev: prefix with `./build/tuta`. After `mage install` or `go install`, u
 
 ```sh
 tuta [sound]
+tuta list [--json]
+tuta preview [sound ...]
 tuta export [-o DIR] [-mono|-stereo] [-depth 16|24] [sound ...]
 tuta debug sounds <cmd> [dir]   # debug builds only (mage build -debug=true or mage install)
 tuta --help
@@ -142,6 +144,29 @@ tuta --version
 Available sounds: `success`, `error`, `warning`, `info`, `complete`, `increase`, `decrease`, `notify`, `progress`, `confirm`, `cancel`, `ready`, `timeout`
 
 With no argument, `tuta` plays `success` (the default). An unrecognized sound name is not silent: `tuta` warns on stderr and still plays `success` as a best-effort fallback (exit 0), so agent hooks keep their feedback cue. An unrecognized option (e.g. `-foo`) is a usage error: stderr message plus usage and exit 2.
+
+### List sounds
+
+`tuta list` prints the built-in names and descriptions without playing audio. Use JSON for scripts and discovery tools:
+
+```sh
+tuta list
+tuta list --json
+```
+
+The JSON output is a stable name-sorted array. Each object has `name`, `description`, and `waveform` fields.
+
+### Preview sounds
+
+Preview every sound in name order, one sound, or a selected sequence:
+
+```sh
+tuta preview
+tuta preview warning
+tuta preview success warning error
+```
+
+Each sound name is printed immediately before playback. The full sequence is validated first, so an unknown name or option exits 2 without playing a partial preview. Playback stops at the first audio error and exits 1.
 
 ### Export FLAC
 

@@ -9,9 +9,9 @@
 - [x] Require tests, linting, vetting, and vulnerability checks to pass before publishing releases.
 - [x] Define and document CLI exit codes and best-effort playback behavior.
 
-- [ ] Add `tuta list`, including machine-readable `--json` output.
-- [ ] Centralize sound metadata and generate help text from that source of truth.
-- [ ] Add `tuta preview` for discovering sounds individually or in sequence.
+- [x] Add `tuta list`, including machine-readable `--json` output.
+- [x] Centralize sound metadata and generate help text from that source of truth.
+- [x] Add `tuta preview` for discovering sounds individually or in sequence.
 - [ ] Add global playback volume control without exposing low-level synthesis parameters.
 - [ ] Add tested, copy-paste integration recipes for shells, build tools, CI, and coding agents.
 

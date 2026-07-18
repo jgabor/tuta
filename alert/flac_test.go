@@ -10,10 +10,10 @@ import (
 )
 
 func TestRenderSuccessLength(t *testing.T) {
-	tones := sounds["success"]
+	definition := findSound("success")
 	gapLen := int(sampleRate * 0.02)
 	want := 0
-	for _, tone := range tones {
+	for _, tone := range definition.tones {
 		want += int(sampleRate*tone.duration) + gapLen
 	}
 

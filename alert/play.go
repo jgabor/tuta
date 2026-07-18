@@ -3,7 +3,6 @@ package alert
 import (
 	"bytes"
 	"encoding/binary"
-	"slices"
 	"time"
 
 	"github.com/hajimehoshi/oto/v2"
@@ -17,19 +16,19 @@ func SampleRate() int {
 // Render returns mono float32 PCM for the named sound. Unknown names fall back
 // to "success" (same behavior as Play and the CLI).
 func Render(name string) []float32 {
-	if name == "timeout" {
-		return generateSweep(329.63, 233.08, 0.50, "triangle", 0.30)
+	definition := findSound(name)
+	if definition == nil {
+		definition = findSound("success")
 	}
-
-	tones, ok := sounds[name]
-	if !ok {
-		tones = sounds["success"]
+	if definition.sweep != nil {
+		s := definition.sweep
+		return generateSweep(s.fromFreq, s.toFreq, s.duration, definition.metadata.Waveform, s.volume)
 	}
 
 	gap := make([]float32, int(sampleRate*0.02))
 	var mono []float32
-	for _, t := range tones {
-		mono = append(mono, generateTone(t)...)
+	for _, t := range definition.tones {
+		mono = append(mono, generateTone(t, definition.metadata.Waveform)...)
 		mono = append(mono, gap...)
 	}
 	return mono
@@ -60,13 +59,21 @@ func Play(name string) error {
 	return nil
 }
 
-// Names returns all built-in sound names, including "timeout", in stable sorted order.
-func Names() []string {
-	names := make([]string, 0, len(sounds)+1)
-	for name := range sounds {
-		names = append(names, name)
+// Sounds returns metadata for all built-in sounds in stable name order.
+func Sounds() []Sound {
+	catalog := make([]Sound, len(soundDefinitions))
+	for i, definition := range soundDefinitions {
+		catalog[i] = definition.metadata
 	}
-	names = append(names, "timeout")
-	slices.Sort(names)
+	return catalog
+}
+
+// Names returns all built-in sound names in stable sorted order.
+func Names() []string {
+	catalog := Sounds()
+	names := make([]string, len(catalog))
+	for i, sound := range catalog {
+		names[i] = sound.Name
+	}
 	return names
 }
