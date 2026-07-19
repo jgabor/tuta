@@ -14,7 +14,7 @@ import (
 	"github.com/jgabor/tuta/alert"
 )
 
-var version = "0.5.0"
+var version = "0.6.0"
 
 // Exit codes (documented in README.md → Exit codes).
 const (
