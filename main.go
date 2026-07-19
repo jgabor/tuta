@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -166,6 +167,11 @@ func (r *runner) playSound(name string, volume int) int {
 }
 
 func (r *runner) runList(args []string) int {
+	if hasHelpArg(args) {
+		_, _ = fmt.Fprint(r.stdout, listUsage)
+		return exitOK
+	}
+
 	jsonOutput := len(args) > 0 && args[0] == "--json"
 	if jsonOutput {
 		args = args[1:]
@@ -195,6 +201,11 @@ func (r *runner) runList(args []string) int {
 }
 
 func (r *runner) runPreview(args []string, volume int) int {
+	if hasHelpArg(args) {
+		_, _ = fmt.Fprint(r.stdout, previewUsage)
+		return exitOK
+	}
+
 	names := args
 	if len(names) == 0 {
 		names = alert.Names()
@@ -223,7 +234,13 @@ func (r *runner) runPreview(args []string, volume int) int {
 
 func (r *runner) runExport(args []string) int {
 	fs := flag.NewFlagSet("export", flag.ContinueOnError)
-	fs.SetOutput(r.stderr)
+	var flagOutput strings.Builder
+	fs.SetOutput(&flagOutput)
+	fs.Usage = func() {
+		_, _ = fmt.Fprint(fs.Output(), exportUsage)
+		fs.PrintDefaults()
+		_, _ = fmt.Fprintln(fs.Output(), "  -h, --help\n    \tshow this help")
+	}
 
 	outDir := fs.String("o", "./tmp", "output directory")
 	mono := fs.Bool("mono", true, "export mono FLAC")
@@ -231,6 +248,11 @@ func (r *runner) runExport(args []string) int {
 	depth := fs.Int("depth", 16, "bit depth: 16 or 24")
 
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			_, _ = fmt.Fprint(r.stdout, flagOutput.String())
+			return exitOK
+		}
+		_, _ = fmt.Fprint(r.stderr, flagOutput.String())
 		return exitUsage
 	}
 	if *stereo {
@@ -279,6 +301,15 @@ func (r *runner) runExport(args []string) int {
 	return exitOK
 }
 
+func hasHelpArg(args []string) bool {
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *runner) writeUsage(w io.Writer) {
 	extra := ""
 	if debugUsage != nil {
@@ -294,6 +325,39 @@ func soundUsage() string {
 	}
 	return usage.String()
 }
+
+const listUsage = `tuta list — list built-in sounds without playing them
+
+Usage:
+  tuta list [--json]
+
+Options:
+  --json      print a stable, name-sorted JSON array
+  -h, --help  show this help
+`
+
+const previewUsage = `tuta preview — play built-in sounds in sequence
+
+Usage:
+  tuta [--volume PERCENT] preview [sound ...]
+
+With no sound names, preview plays every sound in name order. The complete
+sequence is validated before playback begins.
+
+Options:
+  -h, --help  show this help
+
+Global options (must precede preview):
+  --volume PERCENT  playback volume from 0 to 100 (default: 100)
+`
+
+const exportUsage = `tuta export — export built-in sounds as FLAC files
+
+Usage:
+  tuta export [-o DIR] [-mono|-stereo] [-depth 16|24] [sound ...]
+
+Options:
+`
 
 const usageTemplate = `tuta %s — Tiny Utility for Tone Alerts
 Author: Jonathan Gabor
@@ -335,7 +399,9 @@ Rebuild with one of:
   DEBUG=1 mage build         # same as above
   mage install               # $(go env GOBIN)/tuta (debug)
 
-Then run: tuta debug sounds all tmp/
+Then run:
+  ./build/tuta debug sounds all tmp/  # after mage build
+  tuta debug sounds all tmp/          # after mage install
 `
 }
 

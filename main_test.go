@@ -73,6 +73,40 @@ func TestRunHelpLongShort(t *testing.T) {
 	}
 }
 
+func TestRunSubcommandHelp(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"list long", []string{"list", "--help"}, "tuta list —"},
+		{"list short", []string{"list", "-h"}, "tuta list —"},
+		{"preview long", []string{"preview", "--help"}, "tuta preview —"},
+		{"preview short", []string{"preview", "-h"}, "tuta preview —"},
+		{"export long", []string{"export", "--help"}, "tuta export —"},
+		{"export short", []string{"export", "-h"}, "tuta export —"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fp := &fakePlay{}
+			r, stdout, stderr := newRunner(fp.play, nil)
+			if code := r.run(tt.args); code != exitOK {
+				t.Fatalf("run(%v): exit %d, want %d", tt.args, code, exitOK)
+			}
+			if got := stdout.String(); !strings.Contains(got, tt.want) || !strings.Contains(got, "Usage:") {
+				t.Fatalf("run(%v) help incomplete:\n%s", tt.args, got)
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("run(%v) wrote help to stderr: %q", tt.args, stderr.String())
+			}
+			if fp.last != "" {
+				t.Fatalf("run(%v) triggered playback with %q", tt.args, fp.last)
+			}
+		})
+	}
+}
+
 func TestRunList(t *testing.T) {
 	fp := &fakePlay{}
 	r, out, stderr := newRunner(fp.play, nil)
@@ -561,8 +595,10 @@ func TestRunDebugUnavailableInReleaseBuild(t *testing.T) {
 	if code := r.run([]string{"debug", "sounds", "all", "tmp/"}); code != exitUsage {
 		t.Fatalf("debug in release build: exit %d, want %d", code, exitUsage)
 	}
-	if got := stderr.String(); !strings.Contains(got, "requires a debug build") || !strings.Contains(got, "mage build -debug=true") {
-		t.Fatalf("stderr must explain the debug build requirement: %q", got)
+	if got := stderr.String(); !strings.Contains(got, "requires a debug build") ||
+		!strings.Contains(got, "mage build -debug=true") ||
+		!strings.Contains(got, "./build/tuta debug sounds all tmp/") {
+		t.Fatalf("stderr must explain the debug build requirement and correct binary path: %q", got)
 	}
 	if fp.last != "" {
 		t.Fatalf("debug unavailability must not trigger playback; got %q", fp.last)
@@ -599,7 +635,7 @@ func TestIsKnownSound(t *testing.T) {
 
 func TestDebugUnavailableMessage(t *testing.T) {
 	msg := debugUnavailableMessage()
-	for _, want := range []string{"requires a debug build", "mage build -debug=true", "mage install", "tuta debug sounds all tmp/"} {
+	for _, want := range []string{"requires a debug build", "mage build -debug=true", "mage install", "./build/tuta debug sounds all tmp/", "tuta debug sounds all tmp/"} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("debugUnavailableMessage missing %q:\n%s", want, msg)
 		}
